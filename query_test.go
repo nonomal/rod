@@ -44,6 +44,13 @@ func (s *S) TestElementHas() {
 	s.False(b.HasMatches("button", "11"))
 }
 
+func (s *S) TestSearch() {
+	p := s.page.Navigate(srcFile("fixtures/click-iframes.html"))
+	p.Search("button", func(sc *rod.Search) {
+		s.Equal("click me", sc.First().Text())
+	})
+}
+
 func (s *S) TestPageElementX() {
 	s.page.Navigate(srcFile("fixtures/click.html"))
 	s.page.Element("body")

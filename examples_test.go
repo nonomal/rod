@@ -159,6 +159,20 @@ func Example_customize_chrome_launch() {
 	// Output: The world’s leading software development platform · GitHub
 }
 
+// Use Page.Search to search through iframes or shadow DOM recursively
+func Example_iframes() {
+	browser := rod.New().Connect().Timeout(time.Minute)
+	defer browser.Close()
+
+	page := browser.Page("https://developer.mozilla.org/en-US/docs/Web/HTML/Element/iframe")
+
+	page.Search("button#css", func(s *rod.Search) {
+		fmt.Println(s.First().Text())
+	})
+
+	// Output: CSS
+}
+
 // Useful when rod doesn't have the function you want, you can call the cdp interface directly easily.
 func Example_direct_cdp() {
 	browser := rod.New().Connect()

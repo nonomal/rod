@@ -49,18 +49,7 @@ func (el *Element) ShadowRootE() (*Element, error) {
 	// though now it's an array, w3c changed the spec of it to be a single.
 	id := node.Get("shadowRoots").Array()[0].Get("backendNodeId").Int()
 
-	shadowNode, err := el.page.CallE("DOM.resolveNode", cdp.Object{
-		"backendNodeId": id,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &Element{
-		page:     el.page,
-		ctx:      el.page.ctx,
-		ObjectID: shadowNode.Get("object.objectId").String(),
-	}, nil
+	return el.page.ElementFromNodeE("backendNodeId", id)
 }
 
 // FrameE doc is the same as the method Frame

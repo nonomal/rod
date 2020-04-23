@@ -310,6 +310,30 @@ func (p *Page) ElementsByJS(js string, params ...interface{}) Elements {
 	return list
 }
 
+// Search for a given query in the DOM tree until the result count is not zero.
+// The query can be plain text or css selector or xpath.
+// It will search nested iframes and shadow doms too.
+func (p *Page) Search(query string, fn func(*Search)) {
+	s, err := p.SearchE(p.Sleeper(), query, true)
+	kit.E(err)
+	fn(s)
+	kit.E(s.ReleaseE())
+}
+
+// First element from the results
+func (s *Search) First() *Element {
+	el, err := s.FirstE()
+	kit.E(err)
+	return el
+}
+
+// Range of the search results
+func (s *Search) Range(from, to int) Elements {
+	list, err := s.RangeE(from, to)
+	kit.E(err)
+	return list
+}
+
 // Move to the location
 func (m *Mouse) Move(x, y float64) {
 	kit.E(m.MoveE(x, y, 0))

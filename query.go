@@ -85,6 +85,99 @@ func (p *Page) HasMatchesE(selector, regex string) (bool, error) {
 	return err == nil, err
 }
 
+// SearchE for a given query in the DOM tree until the result count is not zero.
+// The query can be plain text or css selector or xpath.
+// It will search nested iframes and shadow doms too.
+func (p *Page) SearchE(sleeper kit.Sleeper, query string, deep bool) (*Search, error) {
+	var s *Search
+
+	// TODO: I don't know why we need this, seems like a bug of chrome T_T.
+	// We should remove it once chrome fixed this bug.
+	_, err := p.WaitLoad().CallE("DOM.getDocument", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	err = kit.Retry(p.ctx, sleeper, func() (bool, error) {
+		h, err := p.CallE("DOM.performSearch", cdp.Object{
+			"query":                     query,
+			"includeUserAgentShadowDOM": deep,
+		})
+		if err != nil {
+			return true, err
+		}
+		s = &Search{p, h}
+
+		if s.Count() == 0 {
+			err = s.ReleaseE()
+			if err != nil {
+				return true, err
+			}
+			return false, nil
+		}
+		return true, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return s, nil
+}
+
+// Search represents the remote search handler
+type Search struct {
+	page    *Page
+	handler kit.JSONResult
+}
+
+// Count of the search results
+func (s *Search) Count() int {
+	return int(s.handler.Get("resultCount").Int())
+}
+
+// FirstE element from the results
+func (s *Search) FirstE() (*Element, error) {
+	list, err := s.RangeE(0, 1)
+	if err != nil {
+		return nil, err
+	}
+
+	return list.First(), nil
+}
+
+// RangeE of the search results
+func (s *Search) RangeE(from, to int) (Elements, error) {
+	list, err := s.page.CallE("DOM.getSearchResults", cdp.Object{
+		"searchId":  s.handler.Get("searchId").String(),
+		"fromIndex": from,
+		"toIndex":   to,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	elements := Elements{}
+
+	for _, id := range list.Get("nodeIds").Array() {
+		el, err := s.page.ElementFromNodeE("nodeId", id.Int())
+		if err != nil {
+			return nil, err
+		}
+
+		elements = append(elements, el)
+	}
+
+	return elements, nil
+}
+
+// ReleaseE remote search handler
+func (s *Search) ReleaseE() error {
+	_, err := s.page.CallE("DOM.discardSearchResults", cdp.Object{
+		"searchId": s.handler.Get("searchId").String(),
+	})
+	return err
+}
+
 // ElementE finds element by css selector
 func (p *Page) ElementE(sleeper kit.Sleeper, objectID, selector string) (*Element, error) {
 	return p.ElementByJSE(sleeper, objectID, p.jsFn("element"), cdp.Array{selector})
