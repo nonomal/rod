@@ -1,6 +1,7 @@
 package rod_test
 
 import (
+	"github.com/ysmood/kit"
 	"github.com/ysmood/rod"
 )
 
@@ -44,10 +45,31 @@ func (s *S) TestElementHas() {
 	s.False(b.HasMatches("button", "11"))
 }
 
-func (s *S) TestSearch() {
+func (s *S) TestSearchFirst() {
 	p := s.page.Navigate(srcFile("fixtures/click-iframes.html"))
 	p.Search("button", func(sc *rod.Search) {
 		s.Equal("click me", sc.First().Text())
+	})
+}
+
+func (s *S) TestSearchRange() {
+	p := s.page.Navigate(srcFile("fixtures/selector.html")).WaitLoad()
+
+	go func() {
+		kit.Sleep(0.5)
+		p.Eval(`(url) => {
+			let f = document.createElement('iframe')
+			f.src = url
+			document.body.appendChild(f)
+		}`, srcFile("fixtures/click-iframes.html"))
+	}()
+
+	p.Search("iframe", func(sc *rod.Search) {
+		list := []string{}
+		for _, el := range sc.Range(0, sc.Count()) {
+			list = append(list, el.Describe().Get("localName").String())
+		}
+		s.Equal([]string{"iframe", "iframe", "iframe", "", ""}, list)
 	})
 }
 
